@@ -23,13 +23,8 @@ class AuthController extends Controller
             ->first();
 
         // 3. Provera šifre i postojanja
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (! $user || ! Hash::check($request->password, $user->password) || $user->role !== $request->role) {
             return response()->json(['poruka' => 'Pogrešno korisničko ime ili lozinka.'], 401);
-        }
-
-        // 4. Provera uloge (radnik/admin)
-        if ($user->role !== $request->role) {
-            return response()->json(['poruka' => 'Nemate dozvolu za ovaj tip naloga.'], 403);
         }
 
         // 5. KREIRANJE TOKENA: Ako je sve u redu, generišemo token

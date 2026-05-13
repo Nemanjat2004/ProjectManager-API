@@ -20,10 +20,12 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
-        'username', // pretpostavljam da si i ovo dodao ranije
+        'username',
         'email',
         'password',
         'role',
+        'nadredjeni_id', // Dodato
+        'max_radnika',   // Dodato
     ];
 
     /**
@@ -47,5 +49,25 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
         ];
+    }
+
+    // --- RELACIJE ---
+
+    // 1. Daje nam Admina koji je iznad ovog radnika/logistike
+    public function nadredjeni()
+    {
+        return $this->belongsTo(User::class, 'nadredjeni_id');
+    }
+
+    // 2. Daje nam sve radnike koji su ispod ovog Admina
+    public function mojiRadnici()
+    {
+        return $this->hasMany(User::class, 'nadredjeni_id');
+    }
+
+    // 3. Koji projekti su mu dodeljeni
+    public function projekti()
+    {
+        return $this->belongsToMany(Projekat::class, 'projekat_radnik');
     }
 }

@@ -14,11 +14,20 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('username')->unique(); // Dodato: Korisničko ime
+            $table->string('username')->unique();
             $table->string('email')->unique();
-            $table->string('role')->default('radnik'); // Dodato: Uloga (radnik ili admin)
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+
+            // NOVO: Uloge sada uključuju i logistiku
+            $table->enum('role', ['admin', 'logistika', 'radnik'])->default('radnik');
+
+            // NOVO: Ko je šef ovom korisniku (Adminovima je ovo NULL)
+            $table->foreignId('nadredjeni_id')->nullable()->constrained('users')->onDelete('cascade');
+
+            // NOVO: Limit koliko radnika Admin sme da napravi (Logistika i Radnici ignorišu ovo)
+            $table->integer('max_radnika')->default(5);
+
             $table->rememberToken();
             $table->timestamps();
         });
