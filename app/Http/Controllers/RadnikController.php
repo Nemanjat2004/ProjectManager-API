@@ -8,13 +8,20 @@ use Illuminate\Http\Request;
 class RadnikController extends Controller
 {
     // Funkcija koja vraća samo radnike ulogovanog admina
+    // Funkcija koja vraća samo radnike ulogovanog admina
     public function getMojiRadnici(Request $request)
     {
-        $admin = $request->user(); // DODAJ OVO — nedostajalo je
+        $admin = $request->user();
 
+        // Dodato with('projekti') kako bi backend odmah poslao i listu projekata na kojim radnik radi
         $radnici = User::where('nadredjeni_id', $admin->id)
+            ->with(['projekti' => function ($query) {
+                // Uzimamo samo id i naziv projekta da smanjimo velicinu JSON-a
+                $query->select('projekti.id', 'naziv');
+            }])
             ->select('id', 'name', 'role', 'email')
             ->get();
+
         return response()->json($radnici);
     }
 
@@ -65,5 +72,87 @@ class RadnikController extends Controller
             ->get();
 
         return response()->json($projekti);
+    }
+
+    public function getProjektiRadnika(Request $request, $id)
+    {
+        $admin  = $request->user();
+        $radnik = User::where('id', $id)
+            ->where('nadredjeni_id', $admin->id)
+            ->firstOrFail();
+
+        $projekti = $radnik->projekti()->select('projekti.id', 'naziv')->get();
+        return response()->json($projekti);
+    }
+
+    public function dodajProjekat(Request $request)
+    {
+        $admin = $request->user();
+        $request->validate([
+            'naziv'   => 'required|string|max:255',
+            'klijent' => 'required|string|max:255',
+            'status'  => 'required|in:u_planu,aktivan,zavrsen',
+        ]);
+
+        $projekat = Projekat::create([
+            'naziv'    => $request->naziv,
+            'opis'     => $request->opis ?? '',
+            'klijent'  => $request->klijent,
+            'status'   => $request->status,
+            'admin_id' => $admin->id,
+        ]);
+
+        return response()->json(['poruka' => 'Projekat dodat!', 'projekat' => $projekat]);
+    }
+
+    public function obrisiRadnika(Request $request, $id)
+    {
+        $radnik = User::where('nadredjeni_id', $request->user()->id)->findOrFail($id);
+        $radnik->delete();
+        return response()->json(['poruka' => 'Radnik je uspešno obrisan.']);
+    }
+
+    public function obrisiProjekat(Request $request, $id)
+    {
+        $projekat = Projekat::where('admin_id', $request->user()->id)->findOrFail($id);
+        $projekat->delete();
+        return response()->json(['poruka' => 'Projekat je uspešno obrisan.']);
+    }
+
+    public function getRadniciZaProjekat(Request $request, $id)
+    {
+        $admin      = $request->user();
+        $sviRadnici = User::where('nadredjeni_id', $admin->id)->get();
+        $projekat   = Projekat::where('admin_id', $admin->id)->findOrFail($id);
+
+        // Niz ID-jeva radnika koji već rade na ovom projektu
+        $radniciNaProjektu = $projekat->radnici()->pluck('users.id')->toArray();
+
+        // Pravimo mapu svih radnika sa informacijom da li su čekirani
+        $rezultat = $sviRadnici->map(function ($r) use ($radniciNaProjektu) {
+            return [
+                'id'               => $r->id,
+                'name'             => $r->name,
+                'role'             => $r->role, // <-- OVO NAM JE FALILO ZA BOJU TAGOVA
+                'radi_na_projektu' => in_array($r->id, $radniciNaProjektu),
+            ];
+        });
+
+        return response()->json($rezultat);
+    }
+
+    public function sacuvajRadnikeProjekta(Request $request, $id)
+    {
+        $projekat = Projekat::where('admin_id', $request->user()->id)->findOrFail($id);
+        // Laravel sync() automatski briše one kojih nema u nizu i dodaje nove
+        $projekat->radnici()->sync($request->radnici ?? []);
+        return response()->json(['poruka' => 'Radnici su uspešno ažurirani.']);
+    }
+
+    public function promeniUlogu(Request $request, $id)
+    {
+        $radnik = User::where('nadredjeni_id', $request->user()->id)->findOrFail($id);
+        $radnik->update(['role' => $request->uloga]);
+        return response()->json(['poruka' => 'Uloga promenjena']);
     }
 }

@@ -4,21 +4,31 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RadnikController;
 use Illuminate\Support\Facades\Route;
 
-// Ostavljamo onu probnu rutu ako ti zatreba
 Route::get('/test-konekcije', function () {
     return response()->json(['poruka' => 'Zdravo iz Laravela!']);
 });
 
-// Nova, čista ruta koja gađa Kontroler
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::middleware('auth:sanctum')->group(function () {
+// Sve rute u ovoj grupi automatski traže Token i koriste RadnikController
+Route::middleware('auth:sanctum')->controller(RadnikController::class)->group(function () {
 
-    // Sada je ruta potpuno čista i samo prosleđuje zadatak kontroleru
-    Route::get('/moji-radnici', [RadnikController::class, 'getMojiRadnici']);
+    // --- RADNICI ---
+    Route::get('/moji-radnici', 'getMojiRadnici');
+    Route::post('/dodaj-radnika', 'dodajRadnika');
+    Route::delete('/obrisi-radnika/{id}', 'obrisiRadnika');
+    Route::put('/promeni-ulogu/{id}', 'promeniUlogu');
 
-    Route::post('/dodaj-radnika', [RadnikController::class, 'dodajRadnika']);
+    // --- PROJEKTI ---
+    Route::get('/moji-projekti', 'getMojiProjekti');
+    Route::post('/dodaj-projekat', 'dodajProjekat');
+    Route::get('/projekti/{id}', 'getProjekat');           // Za povlačenje 1 projekta za olovku
+    Route::put('/izmeni-projekat/{id}', 'izmeniProjekat'); // Za čuvanje izmene olovke
+    Route::delete('/obrisi-projekat/{id}', 'obrisiProjekat');
 
-    Route::get('/moji-projekti', [RadnikController::class, 'getMojiProjekti']);
+    // --- RELACIJE RADNIK <-> PROJEKAT ---
+    Route::get('/projekti-radnika/{id}', 'getProjektiRadnika');
+    Route::get('/projekti/{id}/radnici', 'getRadniciZaProjekat');
+    Route::post('/projekti/{id}/radnici', 'sacuvajRadnikeProjekta');
 
 });
